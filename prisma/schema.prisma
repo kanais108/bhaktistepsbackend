@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EventMode {
+  offline
+  online
+  hybrid
+}
+
+enum AttendanceMode {
+  qr
+  self
+  admin
+  code
+}
+
+enum EventCategory {
+  bhakti_vriksha
+  bhagavatam_class
+  mangala_arati
+  sunday_feast
+  festival
+  youth_program
+  course
+  other
+}
+
+enum UserRole {
+  DEVOTEE
+  SERVANT_LEADER
+  SECTOR_LEADER
+  CIRCLE_LEADER
+  SUPER_ADMIN
+}
+
+model LeadershipTree {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(150)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  users      User[]
+  events     Event[]
+  attendance Attendance[]
+
+  @@unique([name])
+  @@map("leadership_trees")
+}
+
+model User {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fullName String   @map("full_name") @db.VarChar(150)
+  phone    String?  @unique @db.VarChar(20)
+  email    String   @unique @db.VarChar(150)
+  isActive Boolean  @default(true) @map("is_active")
+  role     UserRole @default(DEVOTEE)
+
+  treeId          String? @map("tree_id") @db.Uuid
+  reportsToUserId String? @map("reports_to_user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tree LeadershipTree? @relation(fields: [treeId], references: [id], onDelete: SetNull)
+
+  reportsTo    User?  @relation("UserReporting", fields: [reportsToUserId], references: [id], onDelete: SetNull)
+  subordinates User[] @relation("UserReporting")
+
+  attendances      Attendance[]
+  markedAttendance Attendance[]  @relation("AttendanceMarkedBy")
+  sadhanaEntries   Sadhana[]
+  groupMemberships GroupMember[]
+  createdEvents    Event[]
+
+  @@map("users")
+}
+
+model Temple {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(150)
+  code      String   @unique @db.VarChar(50)
+  city      String?  @db.VarChar(100)
+  state     String?  @db.VarChar(100)
+  country   String?  @db.VarChar(100)
+  address   String?
+  phone     String?  @db.VarChar(20)
+  email     String?  @db.VarChar(150)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  events    Event[]
+  groups    Group[]
+
+  @@map("temples")
+}
+
+model Event {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templeId String  @map("temple_id") @db.Uuid
+  groupId  String? @map("group_id") @db.Uuid
+
+  createdByUserId String? @map("created_by_user_id") @db.Uuid
+  treeId          String? @map("tree_id") @db.Uuid
+
+  category       EventCategory
+  title          String         @db.VarChar(200)
+  description    String?
+  eventMode      EventMode      @default(offline) @map("event_mode")
+  locationName   String?        @map("location_name") @db.VarChar(200)
+  startsAt       DateTime       @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime       @map("ends_at") @db.Timestamptz(6)
+  attendanceMode AttendanceMode @default(qr) @map("attendance_mode")
+  isActive       Boolean        @default(true) @map("is_active")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  temple        Temple          @relation(fields: [templeId], references: [id], onDelete: Cascade)
+  group         Group?          @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  createdByUser User?           @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  tree          LeadershipTree? @relation(fields: [treeId], references: [id], onDelete: SetNull)
+  attendances   Attendance[]
+
+  @@map("events")
+}
+
+model Group {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templeId  String   @map("temple_id") @db.Uuid
+  name      String   @db.VarChar(150)
+  code      String?  @db.VarChar(50)
+  groupType String?  @map("group_type") @db.VarChar(50)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  temple  Temple        @relation(fields: [templeId], references: [id], onDelete: Cascade)
+  events  Event[]
+  members GroupMember[]
+
+  @@unique([templeId, name])
+  @@map("groups")
+}
+
+model Attendance {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId        String  @map("event_id") @db.Uuid
+  userId         String  @map("user_id") @db.Uuid
+  markedByUserId String? @map("marked_by_user_id") @db.Uuid
+  treeId         String? @map("tree_id") @db.Uuid
+
+  status    String   @default("present") @db.VarChar(30)
+  remarks   String?
+  markedAt  DateTime @default(now()) @map("marked_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  event        Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  markedByUser User?           @relation("AttendanceMarkedBy", fields: [markedByUserId], references: [id], onDelete: SetNull)
+  tree         LeadershipTree? @relation(fields: [treeId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, userId], name: "eventId_userId")
+  @@map("attendance")
+}
+
+model Sadhana {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  entryDate       DateTime @map("entry_date") @db.Date
+  japaRounds      Int      @default(0) @map("japa_rounds")
+  mangalaArati    Boolean  @default(false) @map("mangala_arati")
+  tulasiPuja      Boolean  @default(false) @map("tulasi_puja")
+  guruPuja        Boolean  @default(false) @map("guru_puja")
+  bhagavatamClass Boolean  @default(false) @map("bhagavatam_class")
+  readingMinutes  Int      @default(0) @map("reading_minutes")
+  serviceMinutes  Int      @default(0) @map("service_minutes")
+  sleptAt         String?  @map("slept_at") @db.VarChar(10)
+  wokeUpAt        String?  @map("woke_up_at") @db.VarChar(10)
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryDate])
+  @@map("sadhana")
+}
+
+model GroupMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model EmailOtp {
+  id        String   @id @default(uuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
