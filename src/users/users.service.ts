@@ -414,6 +414,44 @@ export class UsersService {
     }
   }
 
+  async findAllScopedPaginated(params: {
+    viewerUserId: string;
+    search?: string;
+    page: number;
+    limit: number;
+    role?: UserRole;
+    isActive?: boolean;
+  }) {
+    const { viewerUserId, search, page, limit, role, isActive } = params;
+
+    // 👇 reuse your existing method
+    const scopedUsers = await this.findAllScoped(viewerUserId, search);
+
+    let filtered = scopedUsers;
+
+    if (role) {
+      filtered = filtered.filter((u) => u.role === role);
+    }
+
+    if (isActive !== undefined) {
+      filtered = filtered.filter((u) => u.isActive === isActive);
+    }
+
+    const total = filtered.length;
+
+    const start = (page - 1) * limit;
+    const end = start + limit;
+
+    const data = filtered.slice(start, end);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
+
   private async assertCanAssignManager(
     viewerUserId: string,
     targetUserId: string,

@@ -43,8 +43,22 @@ export class UsersController {
   }
 
   @Get()
-  findAll(@Req() req: AuthenticatedRequest, @Query('search') search?: string) {
-    return this.usersService.findAllScoped(req.user.userId, search);
+  findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query('search') search?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('role') role?: UserRole,
+    @Query('isActive') isActive?: string,
+  ) {
+    return this.usersService.findAllScopedPaginated({
+      viewerUserId: req.user.userId,
+      search,
+      page: Number(page),
+      limit: Number(limit),
+      role,
+      isActive: isActive === undefined ? undefined : isActive === 'true',
+    });
   }
 
   @Get('by-email')
