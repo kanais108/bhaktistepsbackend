@@ -11,6 +11,7 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { SadhanaModule } from './sadhana/sadhana.module';
 import { GroupMembersModule } from './group-members/group-members.module';
 import { AdminModule } from './admin/admin.module';
+import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AdminModule } from './admin/admin.module';
     SadhanaModule,
     GroupMembersModule,
     AdminModule,
+    DeviceTokensModule,
   ],
   controllers: [],
   providers: [],
