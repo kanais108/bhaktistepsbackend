@@ -12,6 +12,7 @@ import { SadhanaModule } from './sadhana/sadhana.module';
 import { GroupMembersModule } from './group-members/group-members.module';
 import { AdminModule } from './admin/admin.module';
 import { DeviceTokensModule } from './device-tokens/device-tokens.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { DeviceTokensModule } from './device-tokens/device-tokens.module';
     GroupMembersModule,
     AdminModule,
     DeviceTokensModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [],
