@@ -16,8 +16,13 @@ type AuthenticatedRequest = Request & {
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  @Post('test-me')
-  sendTestToMe(@Req() req: AuthenticatedRequest) {
-    return this.notificationsService.sendTestToMe(req.user.userId);
+  @Post('send')
+  sendNotification(@Req() req: AuthenticatedRequest, @Body() body: any) {
+    return this.notificationsService.sendToMe(
+      req.user.userId,
+      body.title,
+      body.body,
+      body.type,
+    );
   }
 }

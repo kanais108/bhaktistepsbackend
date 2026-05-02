@@ -22,32 +22,23 @@ export class NotificationsService {
     }
   }
 
-  async sendTestToMe(userId: string) {
+  async sendToMe(userId: string, title: string, body: string, type?: string) {
     const tokens = await this.prisma.deviceToken.findMany({
-      where: {
-        userId,
-        isActive: true,
-      },
-      select: {
-        token: true,
-      },
+      where: { userId, isActive: true },
     });
 
-    if (tokens.length === 0) {
-      return {
-        success: false,
-        message: 'No active device tokens found for this user',
-      };
+    if (!tokens.length) {
+      return { success: false, message: 'No tokens found' };
     }
 
     const response = await admin.messaging().sendEachForMulticast({
       tokens: tokens.map((t) => t.token),
       notification: {
-        title: 'Hare Krishna 🙏',
-        body: 'This is your first Bhakti Steps push notification.',
+        title,
+        body,
       },
       data: {
-        type: 'test',
+        type: type ?? 'dashboard', // important
       },
     });
 
