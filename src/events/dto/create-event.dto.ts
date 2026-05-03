@@ -68,4 +68,8 @@ export class CreateEventDto {
   @IsOptional()
   @IsEnum(AttendanceModeDto)
   attendanceMode?: AttendanceModeDto;
+
+  @IsOptional()
+  @IsString()
+  posterImageUrl?: string;
 }

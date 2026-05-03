@@ -20,6 +20,7 @@ export class EventsService {
     category: any;
     title: string;
     description?: string | null;
+    posterImageUrl?: string | null;
     eventMode?: any;
     locationName?: string | null;
     startsAt: Date;
@@ -48,6 +49,7 @@ export class EventsService {
         category: data.category,
         title: data.title,
         description: data.description ?? null,
+        posterImageUrl: data.posterImageUrl ?? null,
         eventMode: data.eventMode ?? 'offline',
         locationName: data.locationName ?? null,
         startsAt: data.startsAt,
@@ -101,6 +103,7 @@ export class EventsService {
       category?: any;
       title?: string;
       description?: string | null;
+      posterImageUrl?: string | null;
       eventMode?: any;
       locationName?: string | null;
       startsAt?: Date;
@@ -146,6 +149,10 @@ export class EventsService {
         title: data.title ?? event.title,
         description:
           data.description !== undefined ? data.description : event.description,
+        posterImageUrl:
+          data.posterImageUrl !== undefined
+            ? data.posterImageUrl
+            : event.posterImageUrl,
         eventMode: data.eventMode ?? event.eventMode,
         locationName:
           data.locationName !== undefined

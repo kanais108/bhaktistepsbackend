@@ -78,4 +78,8 @@ export class UpdateEventDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  posterImageUrl?: string;
 }
