@@ -1,5 +1,10 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSadhanaDto } from './dto/create-sadhana.dto';
 
@@ -10,34 +15,27 @@ export class SadhanaService {
   async create(createSadhanaDto: CreateSadhanaDto) {
     try {
       return await this.prisma.sadhana.create({
-        data: {
-          userId: createSadhanaDto.userId,
-          entryDate: new Date(createSadhanaDto.entryDate),
-          japaRounds: createSadhanaDto.japaRounds,
-          mangalaArati: createSadhanaDto.mangalaArati ?? false,
-          tulasiPuja: createSadhanaDto.tulasiPuja ?? false,
-          guruPuja: createSadhanaDto.guruPuja ?? false,
-          bhagavatamClass: createSadhanaDto.bhagavatamClass ?? false,
-          readingMinutes: createSadhanaDto.readingMinutes ?? 0,
-          serviceMinutes: createSadhanaDto.serviceMinutes ?? 0,
-          sleptAt: createSadhanaDto.sleptAt ?? null,
-          wokeUpAt: createSadhanaDto.wokeUpAt ?? null,
-          notes: createSadhanaDto.notes ?? null,
-        },
+        data: this.toSadhanaData(createSadhanaDto),
         include: {
           user: true,
         },
       });
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'Sadhana already submitted for this user and date',
-        );
-      }
-      throw error;
+      this.handlePrismaWriteError(error);
+    }
+  }
+
+  async update(id: string, updateSadhanaDto: CreateSadhanaDto) {
+    try {
+      return await this.prisma.sadhana.update({
+        where: { id },
+        data: this.toSadhanaData(updateSadhanaDto),
+        include: {
+          user: true,
+        },
+      });
+    } catch (error) {
+      this.handlePrismaWriteError(error);
     }
   }
 
@@ -51,15 +49,14 @@ export class SadhanaService {
   }
 
   async isSadhanaDoneToday(userId: string): Promise<boolean> {
-    const now = new Date();
+    const entry = await this.getTodaySadhanaEntry(userId);
+    return entry !== null;
+  }
 
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
+  async getTodaySadhanaEntry(userId: string) {
+    const { startOfDay, endOfDay } = this.todayRange();
 
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const count = await this.prisma.sadhana.count({
+    return this.prisma.sadhana.findFirst({
       where: {
         userId,
         entryDate: {
@@ -67,9 +64,10 @@ export class SadhanaService {
           lte: endOfDay,
         },
       },
+      orderBy: {
+        entryDate: 'desc',
+      },
     });
-
-    return count > 0;
   }
 
   async getSadhanaHistory(userId: string) {
@@ -108,6 +106,7 @@ export class SadhanaService {
       .sort((a, b) => b.getTime() - a.getTime());
 
     const today = new Date();
+
     let current = new Date(
       today.getFullYear(),
       today.getMonth(),
@@ -117,6 +116,7 @@ export class SadhanaService {
     let streak = 0;
 
     const first = uniqueDays[0];
+
     const yesterday = new Date(current);
     yesterday.setDate(yesterday.getDate() - 1);
 
@@ -142,5 +142,54 @@ export class SadhanaService {
     }
 
     return streak;
+  }
+
+  private todayRange() {
+    const now = new Date();
+
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return { startOfDay, endOfDay };
+  }
+
+  private toSadhanaData(dto: CreateSadhanaDto) {
+    return {
+      userId: dto.userId,
+      entryDate: new Date(dto.entryDate),
+      japaRounds: dto.japaRounds,
+      mangalaArati: dto.mangalaArati ?? false,
+      tulasiPuja: dto.tulasiPuja ?? false,
+      guruPuja: dto.guruPuja ?? false,
+      bhagavatamClass: dto.bhagavatamClass ?? false,
+      readingMinutes: dto.readingMinutes ?? 0,
+      serviceMinutes: dto.serviceMinutes ?? 0,
+      sleptAt: dto.sleptAt ?? null,
+      wokeUpAt: dto.wokeUpAt ?? null,
+      notes: dto.notes ?? null,
+    };
+  }
+
+  private handlePrismaWriteError(error: unknown): never {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException(
+        'Sadhana already submitted for this user and date',
+      );
+    }
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
+      throw new NotFoundException('Sadhana entry not found');
+    }
+
+    throw error;
   }
 }
