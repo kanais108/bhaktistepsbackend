@@ -57,10 +57,17 @@ export class SadhanaController {
   }
 
   @Get('streak')
-  async getStreak(@Query('userId') userId: string) {
+  async getStreak(
+    @Query('userId') userId: string,
+    @Query('entryDate') entryDate?: string,
+  ) {
     this.validateUuid(userId, 'userId');
 
-    const streak = await this.sadhanaService.getSadhanaStreak(userId);
+    const streak = await this.sadhanaService.getSadhanaStreak(
+      userId,
+      entryDate,
+    );
+
     return { streak };
   }
 

@@ -109,70 +109,67 @@ export class SadhanaService {
     });
   }
 
-  async getSadhanaStreak(userId: string): Promise<number> {
+  async getSadhanaStreak(userId: string, entryDate?: string): Promise<number> {
     const entries = await this.prisma.sadhana.findMany({
       where: { userId },
       select: { entryDate: true },
       orderBy: { entryDate: 'desc' },
-      take: 60,
+      take: 365,
     });
 
     if (entries.length === 0) {
       return 0;
     }
 
-    const uniqueDays = Array.from(
-      new Set(
-        entries.map((entry) => {
-          const d = new Date(entry.entryDate);
-          return new Date(
-            d.getFullYear(),
-            d.getMonth(),
-            d.getDate(),
-          ).toISOString();
-        }),
-      ),
-    )
-      .map((day) => new Date(day))
-      .sort((a, b) => b.getTime() - a.getTime());
-
-    const today = new Date();
-
-    let current = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
+    const dayKeys = new Set(
+      entries.map((entry) => this.dateKey(entry.entryDate)),
     );
 
-    let streak = 0;
+    let currentKey = entryDate?.trim();
 
-    const first = uniqueDays[0];
-
-    const yesterday = new Date(current);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const startsToday = first.getTime() === current.getTime();
-    const startsYesterday = first.getTime() === yesterday.getTime();
-
-    if (!startsToday && !startsYesterday) {
-      return 0;
+    if (!currentKey) {
+      currentKey = this.dateKey(new Date());
     }
 
-    if (!startsToday) {
-      current = yesterday;
+    if (!this.isValidDateKey(currentKey)) {
+      throw new BadRequestException('Valid entryDate is required');
     }
 
-    for (const day of uniqueDays) {
-      if (day.getTime() === current.getTime()) {
-        streak++;
-        current = new Date(current);
-        current.setDate(current.getDate() - 1);
-      } else if (day.getTime() < current.getTime()) {
-        break;
+    const yesterdayKey = this.shiftDateKey(currentKey, -1);
+
+    if (!dayKeys.has(currentKey)) {
+      if (dayKeys.has(yesterdayKey)) {
+        currentKey = yesterdayKey;
+      } else {
+        return 0;
       }
     }
 
+    let streak = 0;
+
+    while (dayKeys.has(currentKey)) {
+      streak++;
+      currentKey = this.shiftDateKey(currentKey, -1);
+    }
+
     return streak;
+  }
+
+  private dateKey(date: Date): string {
+    return date.toISOString().split('T')[0];
+  }
+
+  private isValidDateKey(value: string): boolean {
+    return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  }
+
+  private shiftDateKey(value: string, days: number): string {
+    const [year, month, day] = value.split('-').map(Number);
+
+    const date = new Date(Date.UTC(year, month - 1, day));
+    date.setUTCDate(date.getUTCDate() + days);
+
+    return date.toISOString().split('T')[0];
   }
 
   private todayRange() {
