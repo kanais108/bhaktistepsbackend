@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -48,13 +49,16 @@ export class SadhanaService {
     });
   }
 
-  async isSadhanaDoneToday(userId: string): Promise<boolean> {
-    const entry = await this.getTodaySadhanaEntry(userId);
+  async isSadhanaDoneToday(
+    userId: string,
+    entryDate?: string,
+  ): Promise<boolean> {
+    const entry = await this.getTodaySadhanaEntry(userId, entryDate);
     return entry !== null;
   }
 
-  async getTodaySadhanaEntry(userId: string) {
-    const { startOfDay, endOfDay } = this.todayRange();
+  async getTodaySadhanaEntry(userId: string, entryDate?: string) {
+    const { startOfDay, endOfDay } = this.dateRange(entryDate);
 
     return this.prisma.sadhana.findFirst({
       where: {
@@ -69,7 +73,34 @@ export class SadhanaService {
       },
     });
   }
+  private dateRange(entryDate?: string) {
+    const raw = entryDate?.trim();
 
+    if (raw) {
+      const [year, month, day] = raw.split('-').map(Number);
+
+      if (!year || !month || !day) {
+        throw new BadRequestException('Valid entryDate is required');
+      }
+
+      const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      const endOfDay = new Date(
+        Date.UTC(year, month - 1, day, 23, 59, 59, 999),
+      );
+
+      return { startOfDay, endOfDay };
+    }
+
+    const now = new Date();
+
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return { startOfDay, endOfDay };
+  }
   async getSadhanaHistory(userId: string) {
     return this.prisma.sadhana.findMany({
       where: { userId },

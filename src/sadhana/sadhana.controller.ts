@@ -27,18 +27,32 @@ export class SadhanaController {
   }
 
   @Get('today')
-  async isTodayDone(@Query('userId') userId: string) {
+  async isTodayDone(
+    @Query('userId') userId: string,
+    @Query('entryDate') entryDate?: string,
+  ) {
     this.validateUuid(userId, 'userId');
 
-    const done = await this.sadhanaService.isSadhanaDoneToday(userId);
+    const done = await this.sadhanaService.isSadhanaDoneToday(
+      userId,
+      entryDate,
+    );
+
     return { done };
   }
 
   @Get('today-entry')
-  async getTodayEntry(@Query('userId') userId: string) {
+  async getTodayEntry(
+    @Query('userId') userId: string,
+    @Query('entryDate') entryDate?: string,
+  ) {
     this.validateUuid(userId, 'userId');
 
-    const entry = await this.sadhanaService.getTodaySadhanaEntry(userId);
+    const entry = await this.sadhanaService.getTodaySadhanaEntry(
+      userId,
+      entryDate,
+    );
+
     return { entry };
   }
 
