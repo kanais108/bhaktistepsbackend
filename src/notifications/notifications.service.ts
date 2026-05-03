@@ -2,6 +2,15 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as admin from 'firebase-admin';
 
+type SendNotificationParams = {
+  title: string;
+  body: string;
+  type?: string;
+  audience?: 'all' | 'role' | 'group';
+  role?: string;
+  groupId?: string;
+};
+
 @Injectable()
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {
@@ -14,38 +23,87 @@ export class NotificationsService {
         );
       }
 
-      const serviceAccount = JSON.parse(raw);
-
       admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+        credential: admin.credential.cert(JSON.parse(raw)),
       });
     }
   }
 
-  async sendToMe(userId: string, title: string, body: string, type?: string) {
-    const tokens = await this.prisma.deviceToken.findMany({
-      where: { userId, isActive: true },
-    });
+  async send(params: SendNotificationParams) {
+    const audience = params.audience ?? 'all';
 
-    if (!tokens.length) {
-      return { success: false, message: 'No tokens found' };
+    const where: any = {
+      isActive: true,
+    };
+
+    if (audience === 'role' && params.role) {
+      where.user = {
+        role: params.role,
+      };
     }
 
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens: tokens.map((t) => t.token),
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        type: type ?? 'dashboard', // important
+    if (audience === 'group' && params.groupId) {
+      where.user = {
+        groupMemberships: {
+          some: {
+            groupId: params.groupId,
+          },
+        },
+      };
+    }
+
+    const tokens = await this.prisma.deviceToken.findMany({
+      where,
+      select: {
+        token: true,
       },
     });
+
+    if (tokens.length === 0) {
+      return {
+        success: false,
+        message: 'No active device tokens found',
+        sent: 0,
+        failed: 0,
+      };
+    }
+
+    let sent = 0;
+    let failed = 0;
+
+    const tokenValues = tokens.map((t) => t.token);
+
+    for (let i = 0; i < tokenValues.length; i += 500) {
+      const batch = tokenValues.slice(i, i + 500);
+
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: batch,
+        notification: {
+          title: params.title,
+          body: params.body,
+        },
+        data: {
+          type: params.type ?? 'dashboard',
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+            },
+          },
+        },
+      });
+
+      sent += response.successCount;
+      failed += response.failureCount;
+    }
 
     return {
       success: true,
-      sent: response.successCount,
-      failed: response.failureCount,
+      audience,
+      totalTokens: tokens.length,
+      sent,
+      failed,
     };
   }
 }

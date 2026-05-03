@@ -1,4 +1,4 @@
-import { Controller, Post, Req, Body, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { NotificationsService } from './notifications.service';
@@ -18,11 +18,13 @@ export class NotificationsController {
 
   @Post('send')
   sendNotification(@Req() req: AuthenticatedRequest, @Body() body: any) {
-    return this.notificationsService.sendToMe(
-      req.user.userId,
-      body.title,
-      body.body,
-      body.type,
-    );
+    return this.notificationsService.send({
+      title: body.title,
+      body: body.body,
+      type: body.type,
+      audience: body.audience ?? 'all',
+      role: body.role,
+      groupId: body.groupId,
+    });
   }
 }
