@@ -65,10 +65,16 @@ export class SadhanaController {
   }
 
   private validateUuid(value: string, fieldName: string) {
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+    const cleaned = value?.toString().trim();
 
-    if (!value || !uuidRegex.test(value)) {
+    if (!cleaned) {
+      throw new BadRequestException(`Valid ${fieldName} UUID is required`);
+    }
+
+    const uuidRegex =
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+    if (!uuidRegex.test(cleaned)) {
       throw new BadRequestException(`Valid ${fieldName} UUID is required`);
     }
   }
