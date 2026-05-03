@@ -9,6 +9,8 @@ type SendNotificationParams = {
   audience?: 'all' | 'role' | 'group';
   role?: string;
   groupId?: string;
+  imageUrl?: string;
+  eventId?: string;
 };
 
 @Injectable()
@@ -84,12 +86,22 @@ export class NotificationsService {
         },
         data: {
           type: params.type ?? 'dashboard',
+          eventId: params.eventId ?? '',
+        },
+        android: {
+          notification: {
+            imageUrl: params.imageUrl, // ✅ Android image
+          },
         },
         apns: {
           payload: {
             aps: {
               sound: 'default',
+              'mutable-content': 1,
             },
+          },
+          fcmOptions: {
+            imageUrl: params.imageUrl, // ✅ iOS image
           },
         },
       });

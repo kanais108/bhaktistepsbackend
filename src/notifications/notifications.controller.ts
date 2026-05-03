@@ -22,6 +22,8 @@ export class NotificationsController {
       title: body.title,
       body: body.body,
       type: body.type,
+      imageUrl: body.imageUrl,
+      eventId: body.eventId,
       audience: body.audience ?? 'all',
       role: body.role,
       groupId: body.groupId,

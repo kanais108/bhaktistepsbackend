@@ -126,6 +126,7 @@ model Event {
   createdByUser User?           @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   tree          LeadershipTree? @relation(fields: [treeId], references: [id], onDelete: SetNull)
   attendances   Attendance[]
+  posterImageUrl String?  
 
   @@map("events")
 }
