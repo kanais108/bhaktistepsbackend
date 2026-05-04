@@ -12,6 +12,11 @@ export class ContentPagesController {
     return this.contentPagesService.findAll();
   }
 
+  @Get(':slug/children')
+  findChildren(@Param('slug') slug: string) {
+    return this.contentPagesService.findChildren(slug);
+  }
+
   @Get(':slug')
   findBySlug(@Param('slug') slug: string) {
     return this.contentPagesService.findBySlug(slug);

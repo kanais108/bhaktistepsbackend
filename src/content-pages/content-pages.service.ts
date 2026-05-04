@@ -13,7 +13,7 @@ export class ContentPagesService {
 
   findAll() {
     return this.prisma.contentPage.findMany({
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ parentSlug: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
     });
   }
 
@@ -31,32 +31,45 @@ export class ContentPagesService {
     return page;
   }
 
+  async findChildren(parentSlug: string) {
+    const cleanedParentSlug = this.cleanSlug(parentSlug);
+
+    return this.prisma.contentPage.findMany({
+      where: {
+        parentSlug: cleanedParentSlug,
+        isActive: true,
+      },
+      orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+    });
+  }
+
   async upsert(dto: UpsertContentPageDto) {
     const slug = this.cleanSlug(dto.slug);
+    const parentSlug = dto.parentSlug?.trim()
+      ? this.cleanSlug(dto.parentSlug)
+      : null;
 
-    if (!dto.title?.trim()) {
-      throw new BadRequestException('Title is required');
-    }
-
-    if (!dto.body?.trim()) {
-      throw new BadRequestException('Body is required');
-    }
+    this.validateRequiredFields(dto);
 
     return this.prisma.contentPage.upsert({
       where: { slug },
       create: {
         slug,
+        parentSlug,
         title: dto.title.trim(),
         subtitle: dto.subtitle?.trim() || null,
         body: dto.body.trim(),
         heroImageUrl: dto.heroImageUrl?.trim() || null,
+        sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive ?? true,
       },
       update: {
+        parentSlug,
         title: dto.title.trim(),
         subtitle: dto.subtitle?.trim() || null,
         body: dto.body.trim(),
         heroImageUrl: dto.heroImageUrl?.trim() || null,
+        sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive ?? true,
       },
     });
@@ -71,17 +84,33 @@ export class ContentPagesService {
       throw new NotFoundException('Content page not found');
     }
 
+    this.validateRequiredFields(dto);
+
     return this.prisma.contentPage.update({
       where: { id },
       data: {
         slug: this.cleanSlug(dto.slug),
+        parentSlug: dto.parentSlug?.trim()
+          ? this.cleanSlug(dto.parentSlug)
+          : null,
         title: dto.title.trim(),
         subtitle: dto.subtitle?.trim() || null,
         body: dto.body.trim(),
         heroImageUrl: dto.heroImageUrl?.trim() || null,
+        sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive ?? true,
       },
     });
+  }
+
+  private validateRequiredFields(dto: UpsertContentPageDto) {
+    if (!dto.title?.trim()) {
+      throw new BadRequestException('Title is required');
+    }
+
+    if (!dto.body?.trim()) {
+      throw new BadRequestException('Body is required');
+    }
   }
 
   private cleanSlug(value: string) {
