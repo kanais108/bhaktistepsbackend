@@ -13,6 +13,7 @@ import { GroupMembersModule } from './group-members/group-members.module';
 import { AdminModule } from './admin/admin.module';
 import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ContentPagesModule } from './content-pages/content-pages.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AdminModule,
     DeviceTokensModule,
     NotificationsModule,
+    ContentPagesModule,
   ],
   controllers: [],
   providers: [],
