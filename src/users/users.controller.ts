@@ -131,7 +131,7 @@ export class UsersController {
     @Body() dto: UpdateUserHierarchyDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.usersService.updateHierarchy(req.userId, id, dto);
+    return this.usersService.updateHierarchy(req.user.userId, id, dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
