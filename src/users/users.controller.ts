@@ -30,18 +30,30 @@ type AuthenticatedRequest = Request & {
   };
 };
 
-@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @UseGuards(RolesGuard)
+  /**
+   * Public mobile registration endpoint.
+   * User does not have JWT token yet, so this must remain public.
+   */
+  @Post('register')
+  register(@Body() createUserDto: CreateUserDto) {
+    return this.usersService.create(createUserDto);
+  }
+
+  /**
+   * Protected admin/leader user creation endpoint.
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CIRCLE_LEADER', 'SUPER_ADMIN')
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll(
     @Req() req: AuthenticatedRequest,
@@ -61,6 +73,7 @@ export class UsersController {
     });
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('by-email')
   async findByEmail(@Query('email') email: string) {
     if (!email || !email.trim()) {
@@ -70,7 +83,7 @@ export class UsersController {
     return this.usersService.findByEmail(email);
   }
 
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CIRCLE_LEADER', 'SUPER_ADMIN')
   @Get('assignable-managers')
   getAssignableManagers(
@@ -88,7 +101,7 @@ export class UsersController {
     return this.usersService.getAssignableManagers(req.user.userId, role);
   }
 
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CIRCLE_LEADER', 'SUPER_ADMIN')
   @Patch(':id')
   update(
@@ -99,7 +112,7 @@ export class UsersController {
     return this.usersService.update(req.user.userId, id, dto);
   }
 
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CIRCLE_LEADER', 'SUPER_ADMIN')
   @Patch(':id/role')
   updateRole(
@@ -110,7 +123,7 @@ export class UsersController {
     return this.usersService.updateRole(req.user.userId, id, dto.role);
   }
 
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CIRCLE_LEADER', 'SUPER_ADMIN')
   @Patch(':id/hierarchy')
   updateHierarchy(
@@ -118,10 +131,10 @@ export class UsersController {
     @Body() dto: UpdateUserHierarchyDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.usersService.updateHierarchy(req.user.userId, id, dto);
+    return this.usersService.updateHierarchy(req.userId, id, dto);
   }
 
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CIRCLE_LEADER', 'SUPER_ADMIN')
   @Patch(':id/status')
   updateStatus(
