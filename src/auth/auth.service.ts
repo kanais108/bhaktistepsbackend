@@ -20,6 +20,26 @@ export class AuthService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
+  private get appleReviewEmails() {
+    const configuredEmails = process.env.APPLE_REVIEW_EMAILS?.split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter((email) => email.length > 0);
+
+    if (configuredEmails && configuredEmails.length > 0) {
+      return configuredEmails;
+    }
+
+    return ['apple.review@bhaktisteps.app', 'apple.leader@bhaktisteps.app'];
+  }
+
+  private get appleReviewOtp() {
+    return process.env.APPLE_REVIEW_OTP?.trim() ?? '123456';
+  }
+
+  private isAppleReviewAccount(email: string) {
+    return this.appleReviewEmails.includes(email.trim().toLowerCase());
+  }
+
   async requestOtp(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -35,6 +55,12 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    if (this.isAppleReviewAccount(normalizedEmail)) {
+      return {
+        message: 'Apple review OTP is available in App Review notes',
+      };
     }
 
     await this.prisma.emailOtp.deleteMany({
@@ -85,20 +111,7 @@ export class AuthService {
 
   async verifyOtp(email: string, otp: string) {
     const normalizedEmail = email.trim().toLowerCase();
-
-    const record = await this.prisma.emailOtp.findFirst({
-      where: {
-        email: normalizedEmail,
-        otp: otp.trim(),
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    if (!record || record.expiresAt < new Date()) {
-      throw new UnauthorizedException('Invalid or expired OTP');
-    }
+    const cleanedOtp = otp.trim();
 
     const user = await this.prisma.user.findFirst({
       where: {
@@ -112,6 +125,37 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    if (this.isAppleReviewAccount(normalizedEmail)) {
+      if (cleanedOtp !== this.appleReviewOtp) {
+        throw new UnauthorizedException('Invalid or expired OTP');
+      }
+
+      const token = this.jwtService.sign({
+        userId: user.id,
+        role: user.role,
+        email: user.email,
+      });
+
+      return {
+        token,
+        user,
+      };
+    }
+
+    const record = await this.prisma.emailOtp.findFirst({
+      where: {
+        email: normalizedEmail,
+        otp: cleanedOtp,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!record || record.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired OTP');
     }
 
     const token = this.jwtService.sign({
