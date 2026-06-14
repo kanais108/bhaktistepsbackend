@@ -7,7 +7,9 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 
 import { SadhanaService } from './sadhana.service';
 import { CreateSadhanaDto } from './dto/create-sadhana.dto';
@@ -78,11 +80,122 @@ export class SadhanaController {
     return this.sadhanaService.getSadhanaHistory(userId);
   }
 
+  @Get('report/export')
+  async exportMySadhanaReport(
+    @Query('userId') userId: string,
+    @Query('fromDate') fromDate: string | undefined,
+    @Query('toDate') toDate: string | undefined,
+    @Res() response: Response,
+  ) {
+    this.validateUuid(userId, 'userId');
+
+    const file = await this.sadhanaService.buildSadhanaReport({
+      requesterUserId: userId,
+      scope: 'me',
+      fromDate,
+      toDate,
+    });
+
+    this.sendExcelResponse(response, file.filename, file.buffer);
+  }
+
+  @Post('report/email')
+  async emailMySadhanaReport(
+    @Body()
+    body: {
+      userId?: string;
+      fromDate?: string;
+      toDate?: string;
+      email?: string;
+    },
+  ) {
+    this.validateUuid(body.userId ?? '', 'userId');
+    this.validateEmail(body.email ?? '');
+
+    return this.sadhanaService.emailSadhanaReport({
+      requesterUserId: body.userId!,
+      scope: 'me',
+      fromDate: body.fromDate,
+      toDate: body.toDate,
+      recipientEmail: body.email!,
+    });
+  }
+
+  @Get('members/report/export')
+  async exportMembersSadhanaReport(
+    @Query('facilitatorUserId') facilitatorUserId: string,
+    @Query('memberUserId') memberUserId: string | undefined,
+    @Query('fromDate') fromDate: string | undefined,
+    @Query('toDate') toDate: string | undefined,
+    @Res() response: Response,
+  ) {
+    this.validateUuid(facilitatorUserId, 'facilitatorUserId');
+
+    if (memberUserId) {
+      this.validateUuid(memberUserId, 'memberUserId');
+    }
+
+    const file = await this.sadhanaService.buildSadhanaReport({
+      requesterUserId: facilitatorUserId,
+      memberUserId,
+      scope: 'members',
+      fromDate,
+      toDate,
+    });
+
+    this.sendExcelResponse(response, file.filename, file.buffer);
+  }
+
+  @Post('members/report/email')
+  async emailMembersSadhanaReport(
+    @Body()
+    body: {
+      facilitatorUserId?: string;
+      memberUserId?: string;
+      fromDate?: string;
+      toDate?: string;
+      email?: string;
+    },
+  ) {
+    this.validateUuid(body.facilitatorUserId ?? '', 'facilitatorUserId');
+
+    if (body.memberUserId) {
+      this.validateUuid(body.memberUserId, 'memberUserId');
+    }
+
+    this.validateEmail(body.email ?? '');
+
+    return this.sadhanaService.emailSadhanaReport({
+      requesterUserId: body.facilitatorUserId!,
+      memberUserId: body.memberUserId,
+      scope: 'members',
+      fromDate: body.fromDate,
+      toDate: body.toDate,
+      recipientEmail: body.email!,
+    });
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateSadhanaDto: CreateSadhanaDto) {
     this.validateUuid(id, 'id');
 
     return this.sadhanaService.update(id, updateSadhanaDto);
+  }
+
+  private sendExcelResponse(
+    response: Response,
+    filename: string,
+    buffer: Buffer,
+  ) {
+    response.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"`,
+    );
+    response.send(buffer);
   }
 
   private validateUuid(value: string, fieldName: string) {
@@ -97,6 +210,20 @@ export class SadhanaController {
 
     if (!uuidRegex.test(cleaned)) {
       throw new BadRequestException(`Valid ${fieldName} UUID is required`);
+    }
+  }
+
+  private validateEmail(value: string) {
+    const cleaned = value?.toString().trim();
+
+    if (!cleaned) {
+      throw new BadRequestException('Valid email is required');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(cleaned)) {
+      throw new BadRequestException('Valid email is required');
     }
   }
 }

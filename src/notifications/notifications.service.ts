@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as admin from 'firebase-admin';
 
@@ -15,23 +15,45 @@ type SendNotificationParams = {
 
 @Injectable()
 export class NotificationsService {
+  private firebaseEnabled = false;
+
   constructor(private readonly prisma: PrismaService) {
     if (!admin.apps.length) {
       const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
       if (!raw) {
-        throw new InternalServerErrorException(
-          'FIREBASE_SERVICE_ACCOUNT_JSON is not configured',
+        console.warn(
+          'FIREBASE_SERVICE_ACCOUNT_JSON is not configured. Push notifications are disabled.',
         );
+        return;
       }
 
-      admin.initializeApp({
-        credential: admin.credential.cert(JSON.parse(raw)),
-      });
+      try {
+        admin.initializeApp({
+          credential: admin.credential.cert(JSON.parse(raw)),
+        });
+
+        this.firebaseEnabled = true;
+      } catch (error) {
+        console.error('Failed to initialize Firebase Admin:', error);
+        console.warn('Push notifications are disabled.');
+        this.firebaseEnabled = false;
+      }
+    } else {
+      this.firebaseEnabled = true;
     }
   }
 
   async send(params: SendNotificationParams) {
+    if (!this.firebaseEnabled || !admin.apps.length) {
+      return {
+        success: false,
+        message: 'Firebase is not configured. Push notification skipped.',
+        sent: 0,
+        failed: 0,
+      };
+    }
+
     const audience = params.audience ?? 'all';
 
     const where: any = {
@@ -90,7 +112,7 @@ export class NotificationsService {
         },
         android: {
           notification: {
-            imageUrl: params.imageUrl, // ✅ Android image
+            imageUrl: params.imageUrl,
           },
         },
         apns: {
@@ -101,7 +123,7 @@ export class NotificationsService {
             },
           },
           fcmOptions: {
-            imageUrl: params.imageUrl, // ✅ iOS image
+            imageUrl: params.imageUrl,
           },
         },
       });
