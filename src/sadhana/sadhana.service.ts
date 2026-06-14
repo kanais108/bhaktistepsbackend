@@ -215,6 +215,8 @@ export class SadhanaService {
       },
     });
 
+    const isMyReport = input.scope === 'me';
+
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Bhakti Steps';
     workbook.created = new Date();
@@ -222,31 +224,42 @@ export class SadhanaService {
 
     const detailsSheet = workbook.addWorksheet('Sadhana Details');
 
-    detailsSheet.columns = [
-      { header: 'Date', key: 'date', width: 14 },
-      { header: 'Devotee Name', key: 'fullName', width: 26 },
-      { header: 'Email', key: 'email', width: 34 },
-      { header: 'Role', key: 'role', width: 18 },
-      { header: 'Japa Rounds', key: 'japaRounds', width: 14 },
-      { header: 'Mangala Arati', key: 'mangalaArati', width: 16 },
-      { header: 'Tulasi Puja', key: 'tulasiPuja', width: 14 },
-      { header: 'Guru Puja', key: 'guruPuja', width: 14 },
-      { header: 'Bhagavatam Class', key: 'bhagavatamClass', width: 18 },
-      { header: 'Reading Minutes', key: 'readingMinutes', width: 18 },
-      { header: 'Service Minutes', key: 'serviceMinutes', width: 18 },
-      { header: 'Slept At', key: 'sleptAt', width: 12 },
-      { header: 'Woke Up At', key: 'wokeUpAt', width: 12 },
-      { header: 'Notes', key: 'notes', width: 40 },
-      { header: 'Submitted At', key: 'createdAt', width: 22 },
-      { header: 'Updated At', key: 'updatedAt', width: 22 },
-    ];
+    detailsSheet.columns = isMyReport
+      ? [
+          { header: 'Date', key: 'date', width: 16 },
+          { header: 'Japa Rounds', key: 'japaRounds', width: 14 },
+          { header: 'Mangala Arati', key: 'mangalaArati', width: 16 },
+          { header: 'Tulasi Puja', key: 'tulasiPuja', width: 14 },
+          { header: 'Guru Puja', key: 'guruPuja', width: 14 },
+          { header: 'Bhagavatam Class', key: 'bhagavatamClass', width: 20 },
+          { header: 'Reading Minutes', key: 'readingMinutes', width: 18 },
+          { header: 'Service Minutes', key: 'serviceMinutes', width: 18 },
+          { header: 'Slept At', key: 'sleptAt', width: 12 },
+          { header: 'Woke Up At', key: 'wokeUpAt', width: 12 },
+          { header: 'Notes', key: 'notes', width: 40 },
+          { header: 'Submitted At', key: 'submittedAt', width: 22 },
+          { header: 'Updated At', key: 'updatedAt', width: 22 },
+        ]
+      : [
+          { header: 'Date', key: 'date', width: 16 },
+          { header: 'Devotee Name', key: 'devoteeName', width: 26 },
+          { header: 'Japa Rounds', key: 'japaRounds', width: 14 },
+          { header: 'Mangala Arati', key: 'mangalaArati', width: 16 },
+          { header: 'Tulasi Puja', key: 'tulasiPuja', width: 14 },
+          { header: 'Guru Puja', key: 'guruPuja', width: 14 },
+          { header: 'Bhagavatam Class', key: 'bhagavatamClass', width: 20 },
+          { header: 'Reading Minutes', key: 'readingMinutes', width: 18 },
+          { header: 'Service Minutes', key: 'serviceMinutes', width: 18 },
+          { header: 'Slept At', key: 'sleptAt', width: 12 },
+          { header: 'Woke Up At', key: 'wokeUpAt', width: 12 },
+          { header: 'Notes', key: 'notes', width: 40 },
+          { header: 'Submitted At', key: 'submittedAt', width: 22 },
+          { header: 'Updated At', key: 'updatedAt', width: 22 },
+        ];
 
     for (const entry of entries) {
-      detailsSheet.addRow({
+      const baseRow = {
         date: this.dateKey(entry.entryDate),
-        fullName: entry.user.fullName,
-        email: entry.user.email,
-        role: entry.user.role,
         japaRounds: entry.japaRounds,
         mangalaArati: this.yesNo(entry.mangalaArati),
         tulasiPuja: this.yesNo(entry.tulasiPuja),
@@ -257,9 +270,18 @@ export class SadhanaService {
         sleptAt: entry.sleptAt ?? '',
         wokeUpAt: entry.wokeUpAt ?? '',
         notes: entry.notes ?? '',
-        createdAt: this.formatDateTime(entry.createdAt),
+        submittedAt: this.formatDateTime(entry.createdAt),
         updatedAt: this.formatDateTime(entry.updatedAt),
-      });
+      };
+
+      detailsSheet.addRow(
+        isMyReport
+          ? baseRow
+          : {
+              ...baseRow,
+              devoteeName: entry.user.fullName,
+            },
+      );
     }
 
     this.styleWorksheet(detailsSheet);
