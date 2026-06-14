@@ -397,7 +397,7 @@ export class SadhanaService {
           <p>Please find attached the Sadhana report for the selected date range.</p>
           <p><strong>From:</strong> ${this.dateKey(fromDate)}</p>
           <p><strong>To:</strong> ${this.dateKey(toDate)}</p>
-          <p>Your servant,<br/>Bhakti Steps</p>
+          <p>Your servant,<br/>Bhakti Steps Admin Team</p>
         </div>
       `,
       attachments: [
