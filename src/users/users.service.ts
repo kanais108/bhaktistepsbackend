@@ -305,6 +305,40 @@ export class UsersService {
     });
   }
 
+  async deleteMyAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.emailOtp.deleteMany({
+        where: {
+          email: {
+            equals: user.email,
+            mode: 'insensitive',
+          },
+        },
+      });
+
+      await tx.user.delete({
+        where: { id: user.id },
+      });
+    });
+
+    return {
+      success: true,
+      message: 'Account deleted successfully',
+    };
+  }
+
   private async getManageableUserOrThrow(viewerUserId: string, userId: string) {
     const { accessibleUserIds, currentUser } =
       await this.accessScopeService.getScopedUserIdsAndTree(viewerUserId);

@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Patch,
   Post,
   Param,
@@ -110,6 +112,13 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.usersService.update(req.user.userId, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me')
+  @HttpCode(200)
+  deleteMyAccount(@Req() req: AuthenticatedRequest) {
+    return this.usersService.deleteMyAccount(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
