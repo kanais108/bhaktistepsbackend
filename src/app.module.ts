@@ -14,6 +14,7 @@ import { AdminModule } from './admin/admin.module';
 import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ContentPagesModule } from './content-pages/content-pages.module';
+import { ProgramAttendanceModule } from './program-attendance/program-attendance.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ContentPagesModule } from './content-pages/content-pages.module';
     EventsModule,
     GroupsModule,
     AttendanceModule,
+    ProgramAttendanceModule,
     SadhanaModule,
     GroupMembersModule,
     AdminModule,
