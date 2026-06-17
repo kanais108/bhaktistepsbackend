@@ -32,6 +32,13 @@ type SadhanaReportFile = {
   buffer: Buffer;
 };
 
+type MemberSadhanaHistoryInput = {
+  facilitatorUserId: string;
+  memberUserId: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
 @Injectable()
 export class SadhanaService {
   private readonly resend = new Resend(process.env.RESEND_API_KEY);
@@ -134,6 +141,103 @@ export class SadhanaService {
       orderBy: { entryDate: 'desc' },
       take: 30,
     });
+  }
+
+  async getMemberSadhanaHistory(input: MemberSadhanaHistoryInput) {
+    const { fromDate, toDate } = this.reportDateRange(
+      input.fromDate,
+      input.toDate,
+    );
+
+    const accessibleUserIds = await this.resolveReportUserIds({
+      requesterUserId: input.facilitatorUserId,
+      memberUserId: input.memberUserId,
+      scope: 'members',
+      fromDate: input.fromDate,
+      toDate: input.toDate,
+    });
+
+    if (!accessibleUserIds.includes(input.memberUserId)) {
+      throw new ForbiddenException(
+        'You are not allowed to view this member Sadhana history',
+      );
+    }
+
+    const entries = await this.prisma.sadhana.findMany({
+      where: {
+        userId: input.memberUserId,
+        entryDate: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      orderBy: {
+        entryDate: 'desc',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    const totalEntries = entries.length;
+    const totalJapaRounds = entries.reduce(
+      (sum, entry) => sum + entry.japaRounds,
+      0,
+    );
+    const totalReadingMinutes = entries.reduce(
+      (sum, entry) => sum + entry.readingMinutes,
+      0,
+    );
+    const totalServiceMinutes = entries.reduce(
+      (sum, entry) => sum + entry.serviceMinutes,
+      0,
+    );
+
+    return {
+      fromDate: this.dateKey(fromDate),
+      toDate: this.dateKey(toDate),
+      memberUserId: input.memberUserId,
+      summary: {
+        totalEntries,
+        averageJapaRounds:
+          totalEntries === 0
+            ? 0
+            : Number((totalJapaRounds / totalEntries).toFixed(2)),
+        totalJapaRounds,
+        totalReadingMinutes,
+        totalServiceMinutes,
+        mangalaAratiCount: entries.filter((entry) => entry.mangalaArati).length,
+        tulasiPujaCount: entries.filter((entry) => entry.tulasiPuja).length,
+        guruPujaCount: entries.filter((entry) => entry.guruPuja).length,
+        bhagavatamClassCount: entries.filter((entry) => entry.bhagavatamClass)
+          .length,
+      },
+      entries: entries.map((entry) => ({
+        id: entry.id,
+        userId: entry.userId,
+        entryDate: this.dateKey(entry.entryDate),
+        japaRounds: entry.japaRounds,
+        mangalaArati: entry.mangalaArati,
+        tulasiPuja: entry.tulasiPuja,
+        guruPuja: entry.guruPuja,
+        bhagavatamClass: entry.bhagavatamClass,
+        readingMinutes: entry.readingMinutes,
+        serviceMinutes: entry.serviceMinutes,
+        sleptAt: entry.sleptAt,
+        wokeUpAt: entry.wokeUpAt,
+        notes: entry.notes,
+        createdAt: this.formatDateTime(entry.createdAt),
+        updatedAt: this.formatDateTime(entry.updatedAt),
+        user: entry.user,
+      })),
+    };
   }
 
   async getSadhanaStreak(userId: string, entryDate?: string): Promise<number> {

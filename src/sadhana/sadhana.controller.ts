@@ -175,6 +175,24 @@ export class SadhanaController {
     });
   }
 
+  @Get('members/history')
+  async getMemberSadhanaHistory(
+    @Query('facilitatorUserId') facilitatorUserId: string,
+    @Query('memberUserId') memberUserId: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    this.validateUuid(facilitatorUserId, 'facilitatorUserId');
+    this.validateUuid(memberUserId, 'memberUserId');
+
+    return this.sadhanaService.getMemberSadhanaHistory({
+      facilitatorUserId,
+      memberUserId,
+      fromDate,
+      toDate,
+    });
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateSadhanaDto: CreateSadhanaDto) {
     this.validateUuid(id, 'id');
