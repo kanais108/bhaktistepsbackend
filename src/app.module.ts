@@ -15,6 +15,7 @@ import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ContentPagesModule } from './content-pages/content-pages.module';
 import { ProgramAttendanceModule } from './program-attendance/program-attendance.module';
+import { PublicModule } from './public/public.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ProgramAttendanceModule } from './program-attendance/program-attendance
     DeviceTokensModule,
     NotificationsModule,
     ContentPagesModule,
+    PublicModule,
   ],
   controllers: [],
   providers: [],
