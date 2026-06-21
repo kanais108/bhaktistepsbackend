@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ContentPagesModule } from './content-pages/content-pages.module';
 import { ProgramAttendanceModule } from './program-attendance/program-attendance.module';
 import { PublicModule } from './public/public.module';
+import { ProgramAdminModule } from './program-admin/program-admin.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PublicModule } from './public/public.module';
     NotificationsModule,
     ContentPagesModule,
     PublicModule,
+    ProgramAdminModule,
   ],
   controllers: [],
   providers: [],
