@@ -86,6 +86,7 @@ export class ProgramAdminService {
       },
       include: {
         program: true,
+        group: true,
         leader: {
           select: {
             id: true,
@@ -106,19 +107,23 @@ export class ProgramAdminService {
   }
 
   async createBatch(dto: CreateProgramBatchDto) {
-    await this.getProgramOrThrow(dto.programId);
+    const program = await this.getProgramOrThrow(dto.programId);
     await this.getLeaderOrThrow(dto.leaderId);
 
     if (dto.treeId) {
       await this.getTreeOrThrow(dto.treeId);
     }
 
+    const batchName = dto.name?.trim() || program.name;
+    const group = await this.createOrFindGroupForBatch(batchName);
+
     return this.prisma.programBatch.create({
       data: {
         programId: dto.programId,
         leaderId: dto.leaderId,
         treeId: dto.treeId || null,
-        name: dto.name?.trim() || null,
+        groupId: group.id,
+        name: batchName,
         startDate: dto.startDate
           ? new Date(`${dto.startDate}T00:00:00.000Z`)
           : null,
@@ -126,6 +131,7 @@ export class ProgramAdminService {
       },
       include: {
         program: true,
+        group: true,
         leader: {
           select: {
             id: true,
@@ -146,7 +152,7 @@ export class ProgramAdminService {
   }
 
   async updateBatch(batchId: string, dto: UpdateProgramBatchDto) {
-    await this.getBatchOrThrow(batchId);
+    const existingBatch = await this.getBatchOrThrow(batchId);
 
     if (dto.programId) {
       await this.getProgramOrThrow(dto.programId);
@@ -160,6 +166,31 @@ export class ProgramAdminService {
       await this.getTreeOrThrow(dto.treeId);
     }
 
+    let groupId = existingBatch.groupId;
+
+    if (dto.name !== undefined) {
+      const batchName = dto.name?.trim();
+
+      if (batchName && batchName.length > 0) {
+        if (groupId) {
+          await this.prisma.group.update({
+            where: {
+              id: groupId,
+            },
+            data: {
+              name: batchName,
+              code: this.groupCodeFromName(batchName),
+              groupType: 'bhakti_steps',
+              isActive: dto.isActive ?? existingBatch.isActive,
+            },
+          });
+        } else {
+          const group = await this.createOrFindGroupForBatch(batchName);
+          groupId = group.id;
+        }
+      }
+    }
+
     return this.prisma.programBatch.update({
       where: {
         id: batchId,
@@ -168,6 +199,7 @@ export class ProgramAdminService {
         ...(dto.programId !== undefined ? { programId: dto.programId } : {}),
         ...(dto.leaderId !== undefined ? { leaderId: dto.leaderId } : {}),
         ...(dto.treeId !== undefined ? { treeId: dto.treeId || null } : {}),
+        ...(groupId !== existingBatch.groupId ? { groupId } : {}),
         ...(dto.name !== undefined ? { name: dto.name?.trim() || null } : {}),
         ...(dto.startDate !== undefined
           ? {
@@ -180,6 +212,7 @@ export class ProgramAdminService {
       },
       include: {
         program: true,
+        group: true,
         leader: {
           select: {
             id: true,
@@ -227,7 +260,7 @@ export class ProgramAdminService {
     await this.getBatchOrThrow(batchId);
     await this.getActiveUserOrThrow(dto.userId);
 
-    return this.prisma.programMember.upsert({
+    const member = await this.prisma.programMember.upsert({
       where: {
         batchId_userId: {
           batchId,
@@ -254,10 +287,14 @@ export class ProgramAdminService {
         },
       },
     });
+
+    await this.syncProgramMemberToGroup(batchId, dto.userId);
+
+    return member;
   }
 
   async deactivateBatchMember(batchId: string, userId: string) {
-    await this.getBatchOrThrow(batchId);
+    const batch = await this.getBatchOrThrow(batchId);
     await this.getActiveUserOrThrow(userId);
 
     const result = await this.prisma.programMember.updateMany({
@@ -274,9 +311,18 @@ export class ProgramAdminService {
       throw new NotFoundException('Program member not found');
     }
 
+    if (batch.groupId) {
+      await this.prisma.groupMember.deleteMany({
+        where: {
+          groupId: batch.groupId,
+          userId,
+        },
+      });
+    }
+
     return {
       success: true,
-      message: 'Program member removed from active batch',
+      message: 'Program member removed from active batch and linked group',
     };
   }
 
@@ -332,10 +378,14 @@ export class ProgramAdminService {
       ),
     );
 
+    for (const userId of activeUserIds) {
+      await this.syncProgramMemberToGroup(batchId, userId);
+    }
+
     return {
       success: true,
       copiedCount: results.length,
-      message: `${results.length} members copied to program batch`,
+      message: `${results.length} members copied to program batch and linked group`,
     };
   }
 
@@ -454,6 +504,84 @@ export class ProgramAdminService {
     return tree;
   }
 
+  private async getDefaultTempleOrThrow() {
+    const temple = await this.prisma.temple.findFirst({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    if (!temple) {
+      throw new BadRequestException('No active temple found');
+    }
+
+    return temple;
+  }
+
+  private groupCodeFromName(name: string) {
+    return name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .substring(0, 50);
+  }
+
+  private async createOrFindGroupForBatch(groupName: string) {
+    const temple = await this.getDefaultTempleOrThrow();
+
+    return this.prisma.group.upsert({
+      where: {
+        templeId_name: {
+          templeId: temple.id,
+          name: groupName,
+        },
+      },
+      update: {
+        isActive: true,
+        groupType: 'bhakti_steps',
+      },
+      create: {
+        templeId: temple.id,
+        name: groupName,
+        code: this.groupCodeFromName(groupName),
+        groupType: 'bhakti_steps',
+        isActive: true,
+      },
+    });
+  }
+
+  private async syncProgramMemberToGroup(batchId: string, userId: string) {
+    const batch = await this.prisma.programBatch.findUnique({
+      where: {
+        id: batchId,
+      },
+      select: {
+        groupId: true,
+      },
+    });
+
+    if (!batch?.groupId) {
+      return;
+    }
+
+    await this.prisma.groupMember.upsert({
+      where: {
+        groupId_userId: {
+          groupId: batch.groupId,
+          userId,
+        },
+      },
+      update: {},
+      create: {
+        groupId: batch.groupId,
+        userId,
+      },
+    });
+  }
   private handleUniqueError(error: unknown, message: string) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

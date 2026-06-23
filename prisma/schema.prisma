@@ -150,6 +150,7 @@ model Group {
   temple  Temple        @relation(fields: [templeId], references: [id], onDelete: Cascade)
   events  Event[]
   members GroupMember[]
+  programBatches ProgramBatch[] @relation("ProgramBatchGroup")
 
   @@unique([templeId, name])
   @@map("groups")
@@ -274,6 +275,7 @@ model ProgramBatch {
   programId String  @map("program_id") @db.Uuid
   leaderId  String  @map("leader_id") @db.Uuid
   treeId    String? @map("tree_id") @db.Uuid
+  groupId   String? @map("group_id") @db.Uuid
 
   name      String?   @db.VarChar(200)
   startDate DateTime? @map("start_date") @db.Date
@@ -284,6 +286,7 @@ model ProgramBatch {
   program Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
   leader  User            @relation("ProgramBatchLeader", fields: [leaderId], references: [id], onDelete: Cascade)
   tree    LeadershipTree? @relation(fields: [treeId], references: [id], onDelete: SetNull)
+  group   Group?          @relation("ProgramBatchGroup", fields: [groupId], references: [id], onDelete: SetNull)
 
   members  ProgramMember[]
   sessions ProgramSession[]
@@ -291,6 +294,7 @@ model ProgramBatch {
   @@index([programId])
   @@index([leaderId])
   @@index([treeId])
+  @@index([groupId])
   @@map("program_batches")
 }
 
